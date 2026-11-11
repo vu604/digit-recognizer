@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digit Recognizer</title>
+    <!-- Google Fonts for modern typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --accent: #6366f1;
+            --accent-hover: #4f46e5;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #334155;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+        }
+
+        header {
+            margin-bottom: 2rem;
+            text-align: left;
+        }
+
+        header h1 {
+            font-size: 1.875rem;
+            font-weight: 700;
+            letter-spacing: -0.025em;
+            color: var(--text-main);
+            margin-bottom: 0.5rem;
+        }
+
+        header p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        .app-grid {
+            display: grid;
+            grid-template-columns: 340px 1fr;
+            gap: 2rem;
+            background-color: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 1rem;
+            padding: 2rem;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+        }
+
+        @media (max-width: 768px) {
+            .app-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Canvas Section */
+        .drawing-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .canvas-wrapper {
+            position: relative;
+            width: 260px;
+            height: 260px;
+            background-color: #000;
+            border-radius: 0.75rem;
+            border: 2px solid var(--border);
+            overflow: hidden;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.6);
+            margin-bottom: 1.25rem;
+        }
+
+        canvas {
+            touch-action: none;
+            cursor: crosshair;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 0.75rem;
+            width: 100%;
+            max-width: 260px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            font-weight: 600;
+            font-size: 0.875rem;
+            border-radius: 0.5rem;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background-color: var(--accent);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--accent-hover);
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background-color: transparent;
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+            color: var(--text-main);
+        }
+
+        /* Results Section */
+        .results-section {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .prediction-hero {
+            display: flex;
+            align-items: baseline;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .predicted-digit {
+            font-size: 4rem;
+            font-weight: 700;
+            line-height: 1;
+            color: #818cf8;
+        }
+
+        .prediction-meta .label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+        }
+
+        .prediction-meta .confidence {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        /* Probabilities Breakdown */
+        .breakdown-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .bar-row {
+            display: flex;
+            align-items: center;
+            font-size: 0.85rem;
+            gap: 0.75rem;
+        }
+
+        .bar-label {
+            width: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        .bar-track {
+            flex: 1;
+            height: 8px;
+            background-color: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .bar-fill {
+            height: 100%;
+            background-color: var(--border);
+            border-radius: 4px;
+            transition: width 0.3s ease, background-color 0.3s ease;
+        }
+
+        .bar-row.active .bar-fill {
+            background-color: var(--accent);
+        }
+
+        .bar-row.active .bar-label {
+            color: var(--text-main);
+        }
+
+        .bar-percentage {
+            width: 36px;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+            color: var(--text-muted);
+            font-size: 0.75rem;
+        }
+
+        /* Footer Info */
+        .model-status {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            padding-top: 1rem;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>Digit Recognizer</h1>
+            <p>Draw a digit from 0 to 9, then press Predict.</p>
+        </header>
+
+        <div class="app-grid">
+            <!-- Left Column: Canvas & Controls -->
+            <div class="drawing-section">
+                <div class="canvas-wrapper">
+                    <canvas id="paintCanvas" width="260" height="260"></canvas>
+                </div>
+                <div class="button-group">
+                    <button class="btn btn-secondary" id="clearBtn">Clear</button>
+                    <button class="btn btn-primary" id="predictBtn">Predict</button>
+                </div>
+            </div>
+
+            <!-- Right Column: Results & Confidence Meters -->
+            <div class="results-section">
+                <div>
+                    <div class="prediction-hero">
+                        <div class="predicted-digit" id="heroDigit">0</div>
+                        <div class="prediction-meta">
+                            <div class="label">Top Prediction</div>
+                            <div class="confidence" id="heroConfidence">Confidence: 16.7%</div>
+                        </div>
+                    </div>
+
+                    <!-- Breakdown Bars for 0-9 -->
+                    <div class="breakdown-list" id="breakdownList"></div>
+                </div>
+
+                <div class="model-status">
+                    <span>Model: Pure NumPy MLP</span>
+                    <span>Test Accuracy: 19.4%</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('paintCanvas');
+        const ctx = canvas.getContext('2d');
+        const heroDigit = document.getElementById('heroDigit');
+        const heroConfidence = document.getElementById('heroConfidence');
+        const breakdownList = document.getElementById('breakdownList');
+        const modelStatus = document.querySelector('.model-status');
+        let painting = false;
+
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.lineWidth = 18;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        function startPosition(e) {
+            painting = true;
+            draw(e);
+        }
+
+        function endPosition() {
+            painting = false;
+            ctx.beginPath();
+        }
+
+        function draw(e) {
+            if (!painting) return;
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+            const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+
+            if (clientX === undefined || clientY === undefined) return;
+
+            const x = clientX - rect.left;
+            const y = clientY - rect.top;
+
+            ctx.lineTo(x, y);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+        }
+
+        function renderProbabilities(probabilities) {
+            const rows = probabilities.map((value, digit) => {
+                const width = Math.max(4, Math.round(value * 100));
+                const active = digit === probabilities.indexOf(Math.max(...probabilities));
+                return `
+                    <div class="bar-row ${active ? 'active' : ''}" data-digit="${digit}">
+                        <span class="bar-label">${digit}</span>
+                        <div class="bar-track"><div class="bar-fill" style="width: ${width}%;"></div></div>
+                        <span class="bar-percentage">${Math.round(value * 100)}%</span>
+                    </div>
+                `;
+            }).join('');
+            breakdownList.innerHTML = rows;
+        }
+
+        function setStatusFromInfo(info) {
+            const accuracy = info && typeof info.accuracy === 'number' ? info.accuracy * 100 : 0;
+            modelStatus.innerHTML = `<span>Model: ${info && info.model ? info.model : 'Unknown'}</span><span>Test Accuracy: ${accuracy.toFixed(2)}%</span>`;
+        }
+
+        function clearResult() {
+            heroDigit.textContent = '0';
+            heroConfidence.textContent = 'Confidence: 0.0%';
+            breakdownList.innerHTML = Array.from({ length: 10 }, (_, digit) => `
+                <div class="bar-row ${digit === 0 ? 'active' : ''}" data-digit="${digit}">
+                    <span class="bar-label">${digit}</span>
+                    <div class="bar-track"><div class="bar-fill" style="width: 0%;"></div></div>
+                    <span class="bar-percentage">0%</span>
+                </div>
+            `).join('');
+        }
+
+        function getPixels() {
+            const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const size = 56;
+            const pixels = Array.from({ length: size }, () => Array(size).fill(0));
+
+            for (let y = 0; y < size; y++) {
+                for (let x = 0; x < size; x++) {
+                    const srcX = Math.min(canvas.width - 1, Math.floor((x / size) * canvas.width));
+                    const srcY = Math.min(canvas.height - 1, Math.floor((y / size) * canvas.height));
+                    const idx = (srcY * canvas.width + srcX) * 4;
+                    const r = image.data[idx];
+                    const g = image.data[idx + 1];
+                    const b = image.data[idx + 2];
+                    const brightness = (r + g + b) / 3;
+                    pixels[y][x] = Math.max(0, Math.min(255, brightness));
+                }
+            }
+            return pixels;
+        }
+
+        async function loadModelInfo() {
+            try {
+                const response = await fetch('/api/info');
+                const info = await response.json();
+                setStatusFromInfo(info);
+            } catch (error) {
+                console.error('Failed to load model info:', error);
+            }
+        }
+
+        async function predictDigit() {
+            const pixels = getPixels();
+            const hasInk = pixels.some(row => row.some(value => value > 12));
+            if (!hasInk) {
+                heroDigit.textContent = '?';
+                heroConfidence.textContent = 'Confidence: draw a digit first';
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/predict', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pixels })
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || 'Prediction failed');
+                }
+
+                const prediction = Number(data.prediction);
+                const confidence = Number(data.confidence || 0) * 100;
+                const probabilities = Array.isArray(data.probabilities) ? data.probabilities : Array(10).fill(0);
+
+                heroDigit.textContent = String(prediction);
+                heroConfidence.textContent = `Confidence: ${confidence.toFixed(1)}%`;
+                renderProbabilities(probabilities);
+            } catch (error) {
+                heroDigit.textContent = '?';
+                heroConfidence.textContent = `Error: ${error.message}`;
+                console.error(error);
+            }
+        }
+
+        canvas.addEventListener('mousedown', startPosition);
+        canvas.addEventListener('mouseup', endPosition);
+        canvas.addEventListener('mousemove', draw);
+
+        canvas.addEventListener('touchstart', startPosition);
+        canvas.addEventListener('touchend', endPosition);
+        canvas.addEventListener('touchmove', draw);
+
+        document.getElementById('clearBtn').addEventListener('click', () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            clearResult();
+        });
+
+        document.getElementById('predictBtn').addEventListener('click', predictDigit);
+        clearResult();
+        loadModelInfo();
+    </script>
+</body>
+</html>
